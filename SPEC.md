@@ -129,7 +129,7 @@ HTTP 状态码表示「这个接口本身通不通」，业务健康度看响应
 | `batch` | 读 SequencerInbox 的 `batchCount()` | 计数**回退** → `down`；有未上链数据且滞留 > 90 分钟 → `down` |
 | `parentFinality` | 父链 `eth_getBlockByNumber("finalized")` 的时间戳 | 滞后 > 30 分钟 → `degraded`，> 60 分钟 → `down` |
 | `wallets` | 父链上 batch poster / validator 余额 | 按第 5 节的「还能撑几天」判定 |
-| `exposure` | `rpc_modules` | 出现 `debug`/`txpool`/`admin`/`personal`/`miner` → `down`（这是安全回归） |
+| `exposure` | `rpc_modules` | 出现 `debug`/`txpool`/`admin`/`personal`/`miner` → 异常。**这是安全回归，不是可用性**，按 6.2 单独成条目 |
 
 **心跳（活性）**
 
@@ -243,15 +243,15 @@ HTTP 状态码表示「这个接口本身通不通」，业务健康度看响应
 | 日聚合（可用性、p50/p95、事件数） | 2 年 |
 | 事件记录 | 永久 |
 
----
-
-## 6.2 不是可用性的检查
+### 6.2 不是可用性的检查
 
 有些检查发现的问题与「能不能用」无关，例如公网暴露面（`rpc_modules` 宣称了不该暴露的命名空间）。
 它是安全回归：服务照常可用，但配置错了。
 
 这类检查**必须单独成条目并标记为内部**，不参与所属服务的三态，也不进对外快照。
 把它混进可用性，会让状态页对用户说「用不了」而用户其实用得好好的——状态页因此失去可信度。
+
+---
 
 ## 7. 对外披露
 

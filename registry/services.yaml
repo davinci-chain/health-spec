@@ -112,10 +112,20 @@ services:
     type: chain
     chain: davinci-testnet
     tier: 0
-    checks: [rpc, head, ws, exposure]
+    checks: [rpc, head, ws]
     # 公开 RPC 的 /health 路径目前返回 404（nginx 透传给 nitro，nitro 不实现该路径），
     # 因此不要用它判活，改用 eth_chainId。见 davinci-chain/chain 的对应 issue。
     verifiedAt: "2026-09-18"
+
+  # 安全回归，不是可用性：单独成条目，只在内部面板显示（见 SPEC.md 6.2）
+  - id: chain-exposure
+    name: 公网暴露面
+    type: chain
+    chain: davinci-testnet
+    tier: 0
+    checks: [exposure]
+    internal: true
+    verifiedAt: "2026-09-19"
 
   - id: chain-sequencer
     name: 出块与排序
