@@ -13,8 +13,6 @@ export function adapt(name: string | undefined, body: unknown, latencyMs: number
       return fromSpec(body, latencyMs)
     case 'safe-cgw':
       return fromSafeCgw(body, latencyMs)
-    case 'legacy-healthz':
-      return fromLegacyHealthz(body, latencyMs)
     case 'blockscout-stats':
       return fromBlockscoutStats(body, latencyMs)
     default:
@@ -34,26 +32,6 @@ function fromSpec(body: unknown, latencyMs: number): Check[] {
 function fromSafeCgw(body: unknown, latencyMs: number): Check[] {
   const ok = (body as { status?: string })?.status === 'OK'
   return [{ name: 'http', status: ok ? 'up' : 'down', latencyMs, detail: ok ? undefined : '上游未返回 OK' }]
-}
-
-/** 早期服务的 /healthz：{"ok":true,"head":{...},"indexed":{...},"lastError":null} */
-function fromLegacyHealthz(body: unknown, latencyMs: number): Check[] {
-  const b = body as { ok?: boolean; head?: { block?: number }; indexed?: { block?: number }; lastError?: string | null }
-  const checks: Check[] = [{ name: 'http', status: b?.ok ? 'up' : 'down', latencyMs }]
-
-  const head = b?.head?.block
-  const indexed = b?.indexed?.block
-  if (typeof head === 'number' && typeof indexed === 'number') {
-    const lag = head - indexed
-    // 索引落后本身不致命：还能读到旧数据，属于有损
-    checks.push({
-      name: 'indexer',
-      status: lag > 1000 ? 'degraded' : 'up',
-      detail: lag > 0 ? `落后 ${lag} 个区块` : undefined,
-    })
-  }
-  if (b?.lastError) checks.push({ name: 'indexer', status: 'degraded', detail: '上一轮采集出错' })
-  return checks
 }
 
 /** Blockscout /api/v2/stats：拿得到统计就说明后端和数据库都活着 */

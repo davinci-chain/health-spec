@@ -98,10 +98,9 @@ services:
   - id: market
     name: 行情服务
     type: service
-    url: https://market.davincichain.io/healthz
-    adapter: legacy-healthz    # 待该服务实现 /health 后改为直读，见 davinci-chain/market
+    url: https://market.davincichain.io/health   # 已按本标准实现，直读，不需要 adapter
     tier: 2
-    verifiedAt: "2026-09-18"
+    verifiedAt: "2026-09-19"
 
   # 运营面板自身有 IP 白名单，/health 是白名单的例外，但只在内部采集端可达，
   # 故不列为公开探测目标；面板自检结果由面板自己写入。
