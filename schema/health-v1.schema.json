@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/davinci-chain/health-spec/schema/health-v1.schema.json",
+  "title": "DaVinci service health response v1",
+  "type": "object",
+  "required": ["schemaVersion", "service", "status", "observedAt", "checks"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "description": "契约版本，本文件对应 1.x",
+      "type": "string",
+      "pattern": "^1\\.[0-9]+$"
+    },
+    "service": {
+      "description": "服务 id，与 registry/services.yaml 中的 id 一致",
+      "type": "string",
+      "pattern": "^[a-z0-9]([a-z0-9-]{0,38}[a-z0-9])?$"
+    },
+    "status": {
+      "description": "整体状态，等于 checks 里最差的一个",
+      "enum": ["up", "degraded", "down"]
+    },
+    "observedAt": {
+      "description": "数据被观测到的时刻（RFC 3339，UTC），不是请求时刻",
+      "type": "string",
+      "format": "date-time"
+    },
+    "version": {
+      "description": "可选。构建版本，建议 <语义版本>+<git 短哈希>",
+      "type": "string",
+      "maxLength": 64
+    },
+    "checks": {
+      "description": "单项检查。可以为空数组，但那样的服务只能证明进程活着",
+      "type": "array",
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "required": ["name", "status"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "description": "检查项名字，通用含义见 SPEC.md 2.3",
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*(:[a-z0-9-]+)?$",
+            "maxLength": 40
+          },
+          "status": { "enum": ["up", "degraded", "down"] },
+          "latencyMs": {
+            "description": "这一项检查自身耗时",
+            "type": "number",
+            "minimum": 0
+          },
+          "detail": {
+            "description": "给人看的一句话。不得包含内网地址、端口、密钥、堆栈、SQL",
+            "type": "string",
+            "maxLength": 200
+          }
+        }
+      }
+    }
+  }
+}

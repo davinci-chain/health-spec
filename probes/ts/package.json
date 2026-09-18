@@ -1,0 +1,17 @@
+{
+  "name": "@davinci-chain/health-spec",
+  "version": "1.0.0",
+  "description": "DaVinci 服务健康标准的参考探针与契约校验器",
+  "license": "MIT",
+  "type": "module",
+  "bin": { "health-spec": "dist/verify.js" },
+  "exports": { ".": "./dist/index.js" },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "verify": "node dist/verify.js verify",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": { "typescript": "^5.6.0", "@types/node": "^22.0.0" },
+  "engines": { "node": ">=22" }
+}

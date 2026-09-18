@@ -1,0 +1,147 @@
+# DaVinci 服务注册表
+#
+# 采集端读这份清单决定探测什么。只写公网可访问的地址：内网地址、端口、IP、密钥一律不进本仓库。
+# 新系统上线时往这里加一条，并在 PR 描述里写清楚它的 check 在什么情况下会变成 degraded / down。
+#
+# 字段说明见 SPEC.md。expect.bodyContains 必须挑「页面真正渲染出来才会出现」的文本，
+# 不要挑 <html> 这种空壳也有的标记。
+# 每条记录的 verifiedAt 是这条配置最后一次被实测确认的日期。
+
+version: 1
+updatedAt: "2026-09-18"
+
+chains:
+  davinci-testnet:
+    chainId: 20913
+    rpc: https://rpc.davincichain.io
+    ws: wss://rpc.davincichain.io/ws
+    parent:
+      name: sepolia
+      chainId: 11155111
+
+services:
+  # ---- 官网与前端站点 ----
+  - id: website
+    name: 官网
+    type: static
+    url: https://davincichain.io/
+    tier: 1
+    expect:
+      status: 200
+      bodyContains: "The settlement layer for the AI agent economy"
+      maxBytes: 4194304
+    tls: { minDaysLeft: 14 }
+    verifiedAt: "2026-09-18"
+
+  - id: explorer
+    name: 区块浏览器（前端）
+    type: static
+    url: https://explorer.davincichain.io/
+    tier: 1
+    expect:
+      status: 200
+      bodyContains: "blockchain explorer"
+    tls: { minDaysLeft: 14 }
+    verifiedAt: "2026-09-18"
+
+  - id: explorer-api
+    name: 区块浏览器（后端 API）
+    type: service
+    # Blockscout 自身没有本标准的 /health，采集端按 adapter 归一，见 probes/ts/src/adapters.ts
+    url: https://explorer.davincichain.io/api/v2/stats
+    adapter: blockscout-stats
+    tier: 1
+    verifiedAt: "2026-09-18"
+
+  - id: safe-web
+    name: Safe 多签前端
+    type: static
+    url: https://safe.davincichain.io/
+    tier: 2
+    expect:
+      status: 200
+      bodyContains: "DaVinci Safe"
+    tls: { minDaysLeft: 14 }
+    verifiedAt: "2026-09-18"
+
+  - id: bridge-web
+    name: 跨链桥前端
+    type: static
+    url: https://bridge.davincichain.io/
+    tier: 2
+    expect:
+      status: 200
+      bodyContains: "DaVinci Bridge"
+    tls: { minDaysLeft: 14 }
+    verifiedAt: "2026-09-18"
+
+  - id: swap-web
+    name: DEX 前端
+    type: static
+    url: https://swap.davincichain.io/
+    tier: 2
+    expect:
+      status: 200
+      bodyContains: "DaVinci Swap"
+    tls: { minDaysLeft: 14 }
+    verifiedAt: "2026-09-18"
+
+  # ---- 后端服务 ----
+  - id: safe-cgw
+    name: Safe 后端（client gateway）
+    type: service
+    url: https://multisig-api.davincichain.io/cgw/health/live
+    adapter: safe-cgw          # 上游返回 {"status":"OK"}，由 adapter 归一
+    tier: 2
+    verifiedAt: "2026-09-18"
+
+  - id: market
+    name: 行情服务
+    type: service
+    url: https://market.davincichain.io/healthz
+    adapter: legacy-healthz    # 待该服务实现 /health 后改为直读，见 davinci-chain/market
+    tier: 2
+    verifiedAt: "2026-09-18"
+
+  # 运营面板自身有 IP 白名单，/health 是白名单的例外，但只在内部采集端可达，
+  # 故不列为公开探测目标；面板自检结果由面板自己写入。
+
+  # ---- 链 ----
+  - id: chain-rpc
+    name: 公开 RPC
+    type: chain
+    chain: davinci-testnet
+    tier: 0
+    checks: [rpc, head, ws, exposure]
+    # 公开 RPC 的 /health 路径目前返回 404（nginx 透传给 nitro，nitro 不实现该路径），
+    # 因此不要用它判活，改用 eth_chainId。见 davinci-chain/chain 的对应 issue。
+    verifiedAt: "2026-09-18"
+
+  - id: chain-sequencer
+    name: 出块与排序
+    type: chain
+    chain: davinci-testnet
+    tier: 0
+    checks: [heartbeat]        # 心跳交易由服务器上的 monitor.sh 发，采集端只读结果
+    verifiedAt: "2026-09-18"
+
+  - id: chain-batch
+    name: batch 上链
+    type: chain
+    chain: davinci-testnet
+    tier: 0
+    checks: [batch, parentFinality, wallets]
+    verifiedAt: "2026-09-18"
+
+  - id: chain-validator
+    name: 验证者
+    type: chain
+    chain: davinci-testnet
+    tier: 0
+    checks: [validator, wallets]
+    verifiedAt: "2026-09-18"
+
+# tier 决定对外状态页的分组与排序：
+#   0 = 链，挂了什么都不能用
+#   1 = 用户直接访问的主要入口
+#   2 = 单个产品，挂了只影响该产品
