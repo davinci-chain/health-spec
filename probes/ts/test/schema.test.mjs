@@ -116,11 +116,10 @@ test('反例（校验器）：整体 status 与最差项不一致 —— schema 
   assert.ok(validate(body).length > 0)
 })
 
-// ---- 已知口径差异：校验器比 schema 宽 ----
+// ---- 口径一致：schema 拒绝的，校验器也拒绝 ----
 
 test(
   '口径一致：schema 拒绝的时间格式与 check 名长度，校验器也应拒绝',
-  { todo: '已知缺陷：validate() 用 Date.parse 判时间、不限 check 名长度，比 schema 宽，见 #3' },
   () => {
     const cases = [
       goodHealth({ observedAt: '2026-09-18' }),

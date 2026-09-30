@@ -12,6 +12,18 @@ import type { Health, Status } from './types.js'
 const STATUSES = new Set<Status>(['up', 'degraded', 'down'])
 const NAME_RE = /^[a-z][a-z0-9-]*(:[a-z0-9-]+)?$/
 const SERVICE_RE = /^[a-z0-9]([a-z0-9-]{0,38}[a-z0-9])?$/
+// 与 schema 的 format: date-time（ajv-formats）同口径：必须带时区，不接受纯日期或自然语言时间
+const RFC3339_RE = /^(\d{4})-(\d{2})-(\d{2})[Tt ](\d{2}):(\d{2}):(\d{2})(\.\d+)?([Zz]|[+-]\d{2}:\d{2})$/
+// 内网地址（10/8、127/8、172.16/12、192.168/16）、端口、密钥字样
+const LEAK_RE = /\b(10|127|172\.(1[6-9]|2\d|3[01])|192\.168)\.\d+\.\d+|:\d{4,5}\b|password|secret|token/i
+
+function isRfc3339(s: string): boolean {
+  const m = RFC3339_RE.exec(s)
+  if (!m) return false
+  const [y, mo, d, h, mi, sec] = m.slice(1, 7).map(Number)
+  const days = [31, y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+  return mo >= 1 && mo <= 12 && d >= 1 && d <= days[mo - 1] && h <= 23 && mi <= 59 && sec <= 60
+}
 
 export function validate(body: unknown, latencyMs?: number): string[] {
   const errs: string[] = []
@@ -21,24 +33,28 @@ export function validate(body: unknown, latencyMs?: number): string[] {
   req(typeof b?.schemaVersion === 'string' && /^1\.\d+$/.test(b.schemaVersion), 'schemaVersion 必须是 1.x')
   req(typeof b?.service === 'string' && SERVICE_RE.test(b.service), 'service 必须是小写短横线 id')
   req(typeof b?.status === 'string' && STATUSES.has(b.status as Status), 'status 必须是 up / degraded / down')
-  req(typeof b?.observedAt === 'string' && !Number.isNaN(Date.parse(b.observedAt!)), 'observedAt 必须是 RFC 3339 时间')
+  req(typeof b?.observedAt === 'string' && isRfc3339(b.observedAt), 'observedAt 必须是 RFC 3339 时间')
   req(Array.isArray(b?.checks), 'checks 必须是数组')
 
   if (Array.isArray(b?.checks)) {
     req(b.checks.length <= 32, 'checks 最多 32 项')
     b.checks.forEach((c, i) => {
-      req(typeof c?.name === 'string' && NAME_RE.test(c.name), `checks[${i}].name 命名不合规`)
-      req(STATUSES.has(c?.status), `checks[${i}].status 取值不合规`)
+      if (typeof c !== 'object' || c === null || Array.isArray(c)) {
+        errs.push(`checks[${i}] 必须是对象`)
+        return
+      }
+      req(typeof c.name === 'string' && c.name.length <= 40 && NAME_RE.test(c.name), `checks[${i}].name 命名不合规（小写短横线，最长 40 字）`)
+      req(STATUSES.has(c.status), `checks[${i}].status 取值不合规`)
       req(c.latencyMs === undefined || (typeof c.latencyMs === 'number' && c.latencyMs >= 0), `checks[${i}].latencyMs 必须是非负数`)
       req(c.detail === undefined || (typeof c.detail === 'string' && c.detail.length <= 200), `checks[${i}].detail 最长 200 字`)
       // 内部信息不该出现在对外字段里
-      if (typeof c.detail === 'string' && /\b(10|127|192\.168)\.\d+\.\d+|:\d{4,5}\b|password|secret|token/i.test(c.detail)) {
+      if (typeof c.detail === 'string' && LEAK_RE.test(c.detail)) {
         errs.push(`checks[${i}].detail 疑似含内网地址、端口或密钥`)
       }
     })
     // 整体状态必须等于最差的一项，否则界面会和明细自相矛盾
     if (b.checks.length && STATUSES.has(b.status as Status)) {
-      const expect = worst(b.checks.map((c) => c.status))
+      const expect = worst(b.checks.map((c) => c?.status))
       req(b.status === expect, `status 应为 ${expect}（等于 checks 里最差的一项），实际是 ${b.status}`)
     }
   }
