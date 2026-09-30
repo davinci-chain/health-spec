@@ -27,7 +27,7 @@ test('标准响应：既无 checks 也无 status → down', () => {
 
 test(
   '标准响应：上游 status 取值非法时应判 down，不能被 worst() 当成 up',
-  { todo: '已知缺陷：fromSpec 不校验三态取值，worst() 忽略未知取值 → 假绿，见 issue' },
+  { todo: '已知缺陷：fromSpec 不校验三态取值，worst() 忽略未知取值 → 假绿，见 #2' },
   () => {
     const out = adapt(undefined, { status: 'ok' }, 1)
     assert.equal(worst(out.map((c) => c.status)), 'down')

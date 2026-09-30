@@ -138,12 +138,12 @@ test('validate：非对象输入逐项报错而不是抛异常', () => {
   }
 })
 
-test('validate：checks 里出现 null 元素应报错而不是抛异常', { todo: '已知缺陷：c.latencyMs 未做空值保护，见 issue' }, () => {
+test('validate：checks 里出现 null 元素应报错而不是抛异常', { todo: '已知缺陷：c.latencyMs 未做空值保护，见 #3' }, () => {
   const errs = validate(goodHealth({ status: 'up', checks: [null] }))
   assert.ok(has(errs, 'checks[0]'))
 })
 
-test('validate：detail 含 172.16.0.0/12 内网地址也应拦截', { todo: '已知缺陷：泄露检测漏了 172.16–31 网段，见 issue' }, () => {
+test('validate：detail 含 172.16.0.0/12 内网地址也应拦截', { todo: '已知缺陷：泄露检测漏了 172.16–31 网段，见 #3' }, () => {
   const errs = validate(goodHealth({ status: 'up', checks: [{ name: 'rpc', status: 'up', detail: '连不上 172.16.0.1' }] }))
   assert.ok(has(errs, '疑似含内网地址'))
 })
