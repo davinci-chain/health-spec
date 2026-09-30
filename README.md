@@ -58,6 +58,36 @@ npx @davinci-chain/health-spec verify https://your-service.example/health
 
 采集与展示在运营面板（内部），对外状态页只显示服务名、三态和日可用性，不暴露任何内部细节。
 
+## 测试
+
+测试在 `probes/ts/test/`，用 Node 内置的 `node:test`，需要 Node ≥ 22。
+全部离线：不需要私钥、测试网或 anvil，HTTP 相关用例只连本机 `127.0.0.1` 上临时起的服务器。
+
+```bash
+cd probes/ts
+npm ci
+npm test            # 先 build 到 dist/，再跑全部离线用例
+```
+
+| 文件 | 覆盖 |
+|---|---|
+| `judge.test.mjs` | 三态取最差项 `worst()`、故障判定 `decide()`、抖动 `isFlapping()`（SPEC 2.1、第 4 节） |
+| `verify.test.mjs` | 契约校验器 `validate()` 的每条规则，以及 CLI 的退出码 0 / 1 / 2 |
+| `probe.test.mjs` | `static` 的响应体断言、状态码、重定向、`maxBytes`；`service` 的直读与 adapter；超时 |
+| `adapters.test.mjs` | 各 adapter 的归一结果 |
+| `schema.test.mjs` | `schema/health-v1.schema.json` 的正例与反例，与校验器口径对照；README / SPEC 里的示例响应 |
+| `registry.test.mjs` | `registry/services.yaml` 的格式：id、类型、只写公网地址、`static` 必须断言响应体、adapter 已实现等 |
+| `online.test.mjs` | 在线冒烟，按注册表真的去探公网目标，**默认跳过** |
+
+在线冒烟需要显式开启（只探 `static` / `service` 的公网地址，每个目标一个请求，不碰 RPC）：
+
+```bash
+npm run test:online        # 等同于 HEALTH_SPEC_ONLINE=1，先 build 再只跑在线用例
+```
+
+标为 `todo` 的用例对应已知缺陷（见 issue #2、#3），它们会显示失败但不影响退出码；修好后去掉 `todo`。
+改 `registry/services.yaml` 或 schema 时，`npm test` 会一并校验。
+
 ## 许可
 
 MIT
