@@ -3,9 +3,19 @@ export type Status = 'up' | 'degraded' | 'down'
 
 const ORDER: Record<Status, number> = { up: 0, degraded: 1, down: 2 }
 
-/** 取最差状态；空数组按 down（没有任何检查结果 = 不知道它活着） */
+export function isStatus(s: unknown): s is Status {
+  return s === 'up' || s === 'degraded' || s === 'down'
+}
+
+/**
+ * 取最差状态；空数组按 down（没有任何检查结果 = 不知道它活着）。
+ * 三态以外的取值也按 down：数据来自上游，类型标注挡不住 "ok"、"error" 这类值，忽略它们就是假绿。
+ */
 export function worst(list: Status[]): Status {
-  return list.reduce<Status>((acc, s) => (ORDER[s] > ORDER[acc] ? s : acc), list.length ? 'up' : 'down')
+  return list.reduce<Status>((acc, s) => {
+    const v = isStatus(s) ? s : 'down'
+    return ORDER[v] > ORDER[acc] ? v : acc
+  }, list.length ? 'up' : 'down')
 }
 
 export interface Check {

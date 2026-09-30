@@ -52,7 +52,8 @@ HTTP 状态码表示「这个接口本身通不通」，业务健康度看响应
 | `degraded` | **能用但有损**：降级、延迟超标、数据滞后、依赖不可用但有兜底 | 至少一个 check 是 `degraded`，没有 `down` |
 | `down` | 主要功能不可用 | 至少一个 check 是 `down` |
 
-服务整体 `status` = 各 `checks` 里最差的那个，取值只能由服务自己算好，探针不重算。
+服务整体 `status` = 各 `checks` 里最差的那个，由服务自己算好再返回。
+探针不单信其中任何一边：取整体 `status` 与各 check 里最差的一个；取值不是 `up` / `degraded` / `down` 的（如 `ok`、`error`）一律按 `down`，detail 记「响应不符合健康契约」。
 一个 check 是否致命由服务自己定义：非关键依赖挂了应当报 `degraded` 而不是 `down`。
 
 ### 2.2 硬性要求

@@ -25,14 +25,44 @@ test('标准响应：既无 checks 也无 status → down', () => {
   }
 })
 
-test(
-  '标准响应：上游 status 取值非法时应判 down，不能被 worst() 当成 up',
-  { todo: '已知缺陷：fromSpec 不校验三态取值，worst() 忽略未知取值 → 假绿，见 #2' },
-  () => {
-    const out = adapt(undefined, { status: 'ok' }, 1)
-    assert.equal(worst(out.map((c) => c.status)), 'down')
-  },
-)
+test('标准响应：上游 status 取值非法时判 down，不能被 worst() 当成 up（#2）', () => {
+  for (const status of ['ok', 'OK', 'healthy', 'error', 1, true, {}]) {
+    const out = adapt(undefined, { status }, 1)
+    assert.equal(worst(out.map((c) => c.status)), 'down', JSON.stringify(status))
+    assert.match(out[0].detail, /不符合健康契约/)
+  }
+})
+
+test('标准响应：checks 里某项取值非法 → 该项 down，保留 name，不回显原始取值', () => {
+  const out = adapt(undefined, { status: 'up', checks: [{ name: 'rpc', status: 'up' }, { name: 'db', status: 'error' }] }, 1)
+  assert.deepEqual(out[0], { name: 'rpc', status: 'up' })
+  assert.equal(out[1].name, 'db')
+  assert.equal(out[1].status, 'down')
+  assert.doesNotMatch(out[1].detail, /error/)
+  assert.equal(worst(out.map((c) => c.status)), 'down')
+})
+
+test('标准响应：checks 元素不是对象 → 按序号命名并判 down；缺 name 只补名字', () => {
+  const out = adapt(undefined, { checks: [null, 'up', { status: 'up' }] }, 1)
+  assert.deepEqual(out.map((c) => [c.name, c.status]), [['check[0]', 'down'], ['check[1]', 'down'], ['check[2]', 'up']])
+})
+
+test('标准响应：整体 status 比 checks 更差 → 补一项 http，取两者最差', () => {
+  const out = adapt(undefined, { status: 'down', checks: [{ name: 'rpc', status: 'up' }] }, 7)
+  assert.deepEqual(out.at(-1), { name: 'http', status: 'down', latencyMs: 7, detail: '服务整体状态比各项 check 更差' })
+  assert.equal(worst(out.map((c) => c.status)), 'down')
+})
+
+test('标准响应：checks 合法但整体 status 非法 → 补一项 down', () => {
+  const out = adapt(undefined, { status: 'ok', checks: [{ name: 'rpc', status: 'up' }] }, 1)
+  assert.equal(worst(out.map((c) => c.status)), 'down')
+})
+
+test('worst()：三态以外的取值按 down', () => {
+  assert.equal(worst(['up', 'ok']), 'down')
+  assert.equal(worst(['up', undefined]), 'down')
+  assert.equal(worst(['up', 'degraded']), 'degraded')
+})
 
 // ---- safe-cgw：{"status":"OK"} ----
 
